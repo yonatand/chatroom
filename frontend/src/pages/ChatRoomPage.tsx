@@ -79,6 +79,9 @@ const ChatRoomPage: React.FC<Props> = ({
           })
         );
         break;
+      case "userList":
+        setUsers(receivedMessage.data);
+        break;
     }
   }, [lastMessage]);
 

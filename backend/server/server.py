@@ -1,19 +1,21 @@
 import json
+import sys
 import threading
 from datetime import datetime
 from socket import AF_INET, SOCK_STREAM, socket
 from typing import Tuple
 
-from .consts import MAX_SOCKETS, PORT
+from .consts import MAX_SOCKETS
 from .SocketManager import SocketManager
 
 
 def handle_client_disconnect(client_address: Tuple[str, int]):
     disconnected_username = socket_manager.read_client_data(client_address, "username")
-    socket_manager.broadcast(
-        json.dumps({"event": "logout", "username": disconnected_username}),
-        client_address,
-    )
+    if disconnected_username:
+        socket_manager.broadcast(
+            json.dumps({"event": "logout", "username": disconnected_username}),
+            client_address,
+        )
 
 
 socket_manager = SocketManager(handle_client_disconnect)
@@ -24,9 +26,20 @@ def handle_read_client(client_address: Tuple[str, int], data_str: str):
     data = json.loads(data_str)
     print(f"Client {client_address} sent: {data}")
     if data["event"] == "login" and isinstance(data["username"], str):
+        username_list = socket_manager.read_all_data_by_key("username")
+        if data["username"] in username_list:
+            socket_manager.write_to_socket(
+                client_address,
+                json.dumps({"event": "error", "message": "Duplicate username"}),
+            )
+            return
         socket_manager.write_client_data(client_address, "username", data["username"])
         socket_manager.broadcast(
             json.dumps({"event": "login", "username": data["username"]}), client_address
+        )
+        username_list.append(data["username"])
+        socket_manager.write_to_socket(
+            client_address, json.dumps({"event": "userList", "data": username_list})
         )
     elif data["event"] == "message" and isinstance(data["data"], str):
         username: str = socket_manager.read_client_data(client_address, "username")
@@ -50,9 +63,18 @@ def handle_client(
     socket_manager.read_from_socket(client_address, handle_read_client)
 
 
+def get_port():
+    if len(sys.argv) < 2:
+        raise Exception("Port number needs to pass as an argument")
+    if not sys.argv[1].isnumeric():
+        raise Exception("Port number needs to be numeric")
+    return int(sys.argv[1])
+
+
 if __name__ == "__main__":
+    port = get_port()
     server_socket = socket(AF_INET, SOCK_STREAM)
-    server_socket.bind(("localhost", PORT))
+    server_socket.bind(("localhost", port))
     server_socket.listen(MAX_SOCKETS)
     print("Server is listening...")
 
