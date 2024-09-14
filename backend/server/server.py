@@ -1,18 +1,45 @@
-import asyncio
+import json
 import threading
+from datetime import datetime
 from socket import AF_INET, SOCK_STREAM, socket
-from typing import Dict, Tuple
+from typing import Tuple
 
 from .consts import MAX_SOCKETS, PORT
 from .SocketManager import SocketManager
 
-socket_manager = SocketManager()
-username_to_client: Dict[str, Tuple[str, int]] = {}
+
+def handle_client_disconnect(client_address: Tuple[str, int]):
+    disconnected_username = socket_manager.read_client_data(client_address, "username")
+    socket_manager.broadcast(
+        json.dumps({"event": "logout", "username": disconnected_username}),
+        client_address,
+    )
 
 
-def handle_read_client(client_address: Tuple[str, int], data: str):
+socket_manager = SocketManager(handle_client_disconnect)
+
+
+# TODO: exception handling
+def handle_read_client(client_address: Tuple[str, int], data_str: str):
+    data = json.loads(data_str)
     print(f"Client {client_address} sent: {data}")
-    # socket_manager.write_to_socket(client_address, b"recived.")
+    if data["event"] == "login" and isinstance(data["username"], str):
+        socket_manager.write_client_data(client_address, "username", data["username"])
+        socket_manager.broadcast(
+            json.dumps({"event": "login", "username": data["username"]}), client_address
+        )
+    elif data["event"] == "message" and isinstance(data["data"], str):
+        username: str = socket_manager.read_client_data(client_address, "username")
+        socket_manager.broadcast(
+            json.dumps(
+                {
+                    "event": "message",
+                    "username": username,
+                    "data": data["data"],
+                    "time": datetime.now().isoformat(),
+                }
+            ),
+        )
 
 
 def handle_client(
@@ -20,7 +47,7 @@ def handle_client(
     client_address: Tuple[str, int],
 ):
     socket_manager.register_socket(client_address, client_socket)
-    asyncio.run(socket_manager.read_from_socket(client_address, handle_read_client))
+    socket_manager.read_from_socket(client_address, handle_read_client)
 
 
 if __name__ == "__main__":

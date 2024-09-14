@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Drawer, Button, Avatar, List, Badge } from "antd";
 import {
   UserOutlined,
@@ -10,53 +10,77 @@ import useStore from "@stores/useStore";
 import Chat from "@features/Chat";
 import { SendMessage } from "react-use-websocket";
 
-type props = {
+type Props = {
   setSocketUrl: (url: string | null) => void;
   sendMessage: SendMessage;
   lastMessage: MessageEvent<any> | null;
 };
 
-const ChatRoomPage: React.FC<props> = ({
+export type Message =
+  | {
+      user: string;
+      content: string;
+      timestamp: string;
+      type?: "USER";
+    }
+  | {
+      content: string;
+      type: "SYSTEM";
+    };
+
+const ChatRoomPage: React.FC<Props> = ({
   setSocketUrl,
   sendMessage,
   lastMessage,
 }) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      user: "Alice",
-      content: "Hello everyone!",
-      timestamp: "2024-09-08T19:27:57.149Z",
-    },
-    {
-      user: "Bob",
-      content: "Hey Alice!",
-      timestamp: "2024-09-08T19:27:58.876Z",
-    },
-    {
-      user: "Charlie",
-      content: "Good morning!",
-      timestamp: "2024-09-09T10:05:42.267Z",
-    },
-    {
-      user: "Alice",
-      content: "How are you all?",
-      timestamp: "2024-09-09T10:07:12.952Z",
-    },
-  ]);
+  const [message, setMessage] = useState<string>("");
+  const [messages, setMessages] = useState<Message[]>([]);
 
-  const [username, setUsername] = useStore((store) => [
-    store.username,
-    store.setUsername,
-  ]);
+  const username = useStore((store) => store.username);
 
-  // Fake users and message history
-  const users = [
-    { id: 1, name: "Alice" },
-    { id: 2, name: "Bob" },
-    { id: 3, name: "Charlie" },
-  ];
+  const [users, setUsers] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!lastMessage) return;
+    const receivedMessage = JSON.parse(lastMessage.data);
+    switch (receivedMessage.event) {
+      case "login":
+        setUsers(users.concat(receivedMessage.username));
+        setMessages(
+          messages.concat({
+            content: `${receivedMessage.username} has logged in!`,
+            type: "SYSTEM",
+          })
+        );
+        break;
+      case "logout":
+        setUsers(
+          users.filter(
+            (oldUsername) => oldUsername !== receivedMessage.username
+          )
+        );
+        setMessages(
+          messages.concat({
+            content: `${receivedMessage.username} has logged out :(`,
+            type: "SYSTEM",
+          })
+        );
+        break;
+      case "message":
+        setMessages(
+          messages.concat({
+            user:
+              username === receivedMessage.username
+                ? username + " (You)"
+                : receivedMessage.username,
+            content: receivedMessage.data,
+            timestamp: receivedMessage.time,
+          })
+        );
+        break;
+    }
+  }, [lastMessage]);
 
   // Handle drawer open/close
   const toggleDrawer = () => {
@@ -67,14 +91,7 @@ const ChatRoomPage: React.FC<props> = ({
   const handleSendMessage = () => {
     if (message) {
       console.log("Message sent:", message);
-      sendMessage(message);
-      setMessages(
-        messages.concat({
-          user: username + " (You)",
-          content: message,
-          timestamp: new Date().toISOString(),
-        })
-      );
+      sendMessage(JSON.stringify({ event: "message", data: message }));
       setMessage(""); // Clear input after sending
     }
   };
@@ -82,7 +99,6 @@ const ChatRoomPage: React.FC<props> = ({
   // Handle disconnect
   const handleDisconnect = () => {
     setSocketUrl(null);
-    setUsername(null);
   };
 
   return (
@@ -145,8 +161,8 @@ const ChatRoomPage: React.FC<props> = ({
           renderItem={(user) => (
             <List.Item>
               <List.Item.Meta
-                avatar={<Avatar>{user.name[0]}</Avatar>}
-                title={<span className="text-white">{user.name}</span>}
+                avatar={<Avatar>{user[0]}</Avatar>}
+                title={<span className="text-white">{user}</span>}
               />
             </List.Item>
           )}

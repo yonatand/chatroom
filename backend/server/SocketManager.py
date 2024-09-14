@@ -1,8 +1,43 @@
-import asyncio
+import struct
 from socket import socket
-from typing import Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 from .handshake import perform_handshake
+
+
+def create_frame(data_str: str):
+    # Ensure the data is encoded in UTF-8
+    data = data_str.encode("utf-8")
+
+    # Frame header
+    frame_header = bytearray()
+
+    # FIN (1 bit), RSV1 (1 bit), RSV2 (1 bit), RSV3 (1 bit), Opcode (4 bits)
+    frame_header.append(
+        0b10000001
+    )  # FIN=1, RSV1=0, RSV2=0, RSV3=0, Opcode=0x1 (text frame)
+
+    # Payload length (7 bits)
+    payload_length = len(data)
+    if payload_length <= 125:
+        frame_header.append(payload_length)
+    elif payload_length <= 65535:
+        frame_header.append(126)
+        frame_header.extend(struct.pack("!H", payload_length))  # 2-byte length
+    else:
+        frame_header.append(127)
+        frame_header.extend(struct.pack("!Q", payload_length))  # 8-byte length
+
+    # Masking key (for simplicity, this example doesn't use masking)
+    # In practice, you should mask the data and send a masking key
+    # mask_key = struct.pack('!I', 0x12345678)
+    # frame_header.extend(mask_key)
+    # data = bytearray(b ^ mask_key[i % 4] for i, b in enumerate(data))
+
+    # Append the payload data
+    frame_header.extend(data)
+
+    return frame_header
 
 
 def decode_websocket_message(frame: bytes):
@@ -21,7 +56,7 @@ def decode_websocket_message(frame: bytes):
         # Close frame
         message_type = "Close"
     else:
-        return f"Unsupported opcode: {opcode}"
+        return {"message_type": "Unsupported"}
 
     # Get the payload length
     length = byte_array[1] & 0x7F
@@ -47,15 +82,19 @@ def decode_websocket_message(frame: bytes):
 
     if message_type == "Text":
         # Decode the payload as UTF-8 for text frames
-        return f"Text message: {unmasked.decode('utf-8')}"
+        return {"message_type": message_type, "message": unmasked.decode("utf-8")}
     elif message_type == "Close":
         if len(unmasked) >= 2:
             # Extract close status code
             status_code = int.from_bytes(unmasked[:2], "big")
             reason = unmasked[2:].decode("utf-8") if len(unmasked) > 2 else ""
-            return f"Close message: Status Code: {status_code}, Reason: {reason}"
+            return {
+                "message_type": message_type,
+                "status": status_code,
+                "reason": reason,
+            }
         else:
-            return "Close message without status code"
+            return {"message_type": message_type}
 
 
 class SocketAlreadyRegisteredException:
@@ -63,51 +102,70 @@ class SocketAlreadyRegisteredException:
 
 
 class SocketManager:
-    def __init__(self):
-        self.socket_dict: Dict[Tuple[str, int], socket] = {}
+    def __init__(
+        self, unregister_callback_fn: Callable[[Tuple[str, int]], None] = None
+    ):
+        self.user_dict: Dict[Tuple[str, int], Dict[str, Any]] = {}
+        self.unregister_callback_fn = unregister_callback_fn
 
     def __get_socket(self, client_addr: Tuple[str, int]) -> socket | None:
-        if client_addr in self.socket_dict:
-            return self.socket_dict[client_addr]
+        if client_addr in self.user_dict:
+            return self.user_dict[client_addr]["socket"]
         return None
 
     def register_socket(self, client_addr: Tuple[str, int], socket: socket):
-        if client_addr in self.socket_dict:
+        if client_addr in self.user_dict:
             raise ""  # TODO: add an exception
-        self.socket_dict[client_addr] = socket
+        self.user_dict[client_addr] = {}
+        self.user_dict[client_addr]["socket"] = socket
 
     def unregister_socket(self, client_addr: Tuple[str, int]):
-        self.socket_dict.pop(client_addr, None)
+        if self.unregister_callback_fn:
+            self.unregister_callback_fn(client_addr)
+        self.user_dict.pop(client_addr, None)
 
-    async def read_from_socket(
+    def read_client_data(self, client_addr: Tuple[str, int], key: str = None):
+        if client_addr not in self.user_dict:
+            raise ""  # TODO: add an exception
+        if key:
+            return self.user_dict[client_addr][key]
+        return self.user_dict[client_addr]
+
+    def write_client_data(self, client_addr: Tuple[str, int], key: str, value: Any):
+        if key == "socket":
+            raise ""  # TODO: add an exception
+        if client_addr not in self.user_dict:
+            raise ""  # TODO: add an exception
+        self.user_dict[client_addr][key] = value
+
+    def read_from_socket(
         self,
         client_addr: Tuple[str, int],
-        callback_fn: Callable[[Tuple[str, int], str], None],
+        callback_fn: Callable[[Tuple[str, int], Any], None],
     ):
-        loop = asyncio.get_event_loop()
         socket = self.__get_socket(client_addr)
         if socket is None:
             raise ""  # TODO: add an exception
         try:
             while True:
-                data = await loop.sock_recv(socket, 1024)  # Read from socket
+                data = socket.recv(1024)  # Read from socket
                 if not data:
                     break
                 decoded_data = decode_websocket_message(data)
-                if decoded_data.startswith("Close"):
+                if decoded_data["message_type"] == "Close":
                     break
-                if decoded_data.startswith(
-                    "Unsupported opcode"
-                ) and "Upgrade: websocket" in data.decode("utf-8"):
+                if decoded_data[
+                    "message_type"
+                ] == "Unsupported" and "Upgrade: websocket" in data.decode("utf-8"):
                     if not perform_handshake(socket, client_addr, data.decode("utf-8")):
                         print(f"Failed WebSocket handshake with {client_addr}")
                         break
                     else:
                         continue
-                elif decoded_data.startswith("Unsupported opcode"):
+                elif decoded_data["message_type"] == "Unsupported":
                     socket.send(b"HTTP/1.1 400 Bad Request\r\n\r\n")
                     break
-                callback_fn(client_addr, decoded_data)
+                callback_fn(client_addr, decoded_data["message"])
         except Exception as e:
             print(f"Exception: {e}")
         finally:
@@ -115,8 +173,19 @@ class SocketManager:
             self.unregister_socket(client_addr)
             print(f"Connection with {client_addr} closed.")
 
-    def write_to_socket(self, client_addr: Tuple[str, int], data: bytes):
+    def write_to_socket(self, client_addr: Tuple[str, int], data: str):
         socket = self.__get_socket(client_addr)
         if socket is None:
             raise ""  # TODO: add an exception
-        socket.send(data)
+        socket.send(create_frame(data))
+
+    def broadcast(self, data: str, client_addr: Tuple[str, int] = None):
+        """
+        Broadcast data to all connected sockets
+        :param data - The data to broadcast
+        :param client_addr - Optional client to not broadcast to (broadcast initiator)
+        """
+        for client_key, client_value in self.user_dict.items():
+            if client_key == client_addr:
+                continue
+            client_value["socket"].send(create_frame(data))
