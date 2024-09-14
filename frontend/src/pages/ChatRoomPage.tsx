@@ -8,8 +8,19 @@ import {
 import "antd/dist/reset.css";
 import useStore from "@stores/useStore";
 import Chat from "@features/Chat";
+import { SendMessage } from "react-use-websocket";
 
-const ChatRoomPage: React.FC = () => {
+type props = {
+  setSocketUrl: (url: string | null) => void;
+  sendMessage: SendMessage;
+  lastMessage: MessageEvent<any> | null;
+};
+
+const ChatRoomPage: React.FC<props> = ({
+  setSocketUrl,
+  sendMessage,
+  lastMessage,
+}) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([
@@ -56,6 +67,7 @@ const ChatRoomPage: React.FC = () => {
   const handleSendMessage = () => {
     if (message) {
       console.log("Message sent:", message);
+      sendMessage(message);
       setMessages(
         messages.concat({
           user: username + " (You)",
@@ -69,9 +81,8 @@ const ChatRoomPage: React.FC = () => {
 
   // Handle disconnect
   const handleDisconnect = () => {
-    console.log("Disconnected from chat!");
+    setSocketUrl(null);
     setUsername(null);
-    // Logic for disconnecting the user goes here (e.g., clearing user session or Socket.IO disconnect)
   };
 
   return (

@@ -1,10 +1,24 @@
 import useStore from "@stores/useStore";
-
 import { Button, Form, Input, Typography } from "antd";
 import { UserOutlined, LinkOutlined } from "@ant-design/icons";
+import useLocalStorage from "@hooks/useLocalStorage";
 const { Title } = Typography;
 
-const LoginPage = () => {
+type Props = {
+  setSocketUrl: (url: string | null) => void;
+};
+
+type FormProps = {
+  defaultUsername: string | null;
+  defaultPort: number | null;
+};
+
+const LoginPage = ({ setSocketUrl }: Props) => {
+  const [{ defaultUsername, defaultPort }, setDefaultFormProps] =
+    useLocalStorage<FormProps>("formProps", {
+      defaultUsername: null,
+      defaultPort: null,
+    });
   const setUsername = useStore((store) => store.setUsername);
 
   return (
@@ -15,10 +29,14 @@ const LoginPage = () => {
         </Title>
         <Form
           name="login"
-          initialValues={{ remember: true }}
+          initialValues={{ username: defaultUsername, port: defaultPort }}
           onFinish={(form) => {
-            console.log(form);
             setUsername(form.username);
+            setDefaultFormProps({
+              defaultUsername: form.username,
+              defaultPort: form.port,
+            });
+            setSocketUrl(`ws://localhost:${form.port}`);
           }}
           className="space-y-4"
         >
