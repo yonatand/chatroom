@@ -19,7 +19,10 @@ const LoginPage = ({ setSocketUrl }: Props) => {
       defaultUsername: null,
       defaultPort: null,
     });
-  const setUsername = useStore((store) => store.setUsername);
+  const [username, setUsername] = useStore((store) => [
+    store.username,
+    store.setUsername,
+  ]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 items-center justify-center">
@@ -29,7 +32,10 @@ const LoginPage = ({ setSocketUrl }: Props) => {
         </Title>
         <Form
           name="login"
-          initialValues={{ username: defaultUsername, port: defaultPort }}
+          initialValues={{
+            username: username || defaultUsername,
+            port: defaultPort,
+          }}
           onFinish={(form) => {
             setUsername(form.username);
             setDefaultFormProps({
