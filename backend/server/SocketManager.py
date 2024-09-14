@@ -28,12 +28,6 @@ def create_frame(data_str: str):
         frame_header.append(127)
         frame_header.extend(struct.pack("!Q", payload_length))  # 8-byte length
 
-    # Masking key (for simplicity, this example doesn't use masking)
-    # In practice, you should mask the data and send a masking key
-    # mask_key = struct.pack('!I', 0x12345678)
-    # frame_header.extend(mask_key)
-    # data = bytearray(b ^ mask_key[i % 4] for i, b in enumerate(data))
-
     # Append the payload data
     frame_header.extend(data)
 
@@ -97,10 +91,6 @@ def decode_websocket_message(frame: bytes):
             return {"message_type": message_type}
 
 
-class SocketAlreadyRegisteredException:
-    pass
-
-
 class SocketManager:
     def __init__(
         self, unregister_callback_fn: Callable[[Tuple[str, int]], None] = None
@@ -128,6 +118,8 @@ class SocketManager:
         if client_addr not in self.user_dict:
             raise ""  # TODO: add an exception
         if key:
+            if key not in self.user_dict[client_addr]:
+                return None
             return self.user_dict[client_addr][key]
         return self.user_dict[client_addr]
 
@@ -137,6 +129,15 @@ class SocketManager:
         if client_addr not in self.user_dict:
             raise ""  # TODO: add an exception
         self.user_dict[client_addr][key] = value
+
+    def read_all_data_by_key(self, key: str):
+        if key == "socket":
+            raise ""  # TODO: add an exception
+        return [
+            inner_dict[key]
+            for inner_dict in self.user_dict.values()
+            if key in inner_dict
+        ]
 
     def read_from_socket(
         self,

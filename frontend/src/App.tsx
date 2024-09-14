@@ -23,6 +23,16 @@ const App = () => {
     }
   }, [readyState]);
 
+  useEffect(() => {
+    if (!lastMessage) return;
+    const receivedMessage = JSON.parse(lastMessage.data);
+    if (
+      receivedMessage.event === "error" &&
+      receivedMessage.message === "Duplicate username"
+    )
+      setSocketUrl(null);
+  }, [lastMessage]);
+
   return (
     <>
       {readyState === ReadyState.OPEN ? (
