@@ -3,6 +3,8 @@ import hashlib
 from socket import socket
 from typing import Tuple
 
+from logs.log import logger
+
 HANDSHAKE_RESPONSE = (
     "HTTP/1.1 101 Switching Protocols\r\n"
     "Upgrade: websocket\r\n"
@@ -25,7 +27,7 @@ def perform_handshake(
             headers[key] = value
 
     if "Sec-WebSocket-Key" not in headers:
-        print(f"Bad WebSocket request from {client_address}")
+        logger.error(f"Bad WebSocket request from {client_address}")
         return False
 
     # Create the Sec-WebSocket-Accept key
@@ -39,5 +41,5 @@ def perform_handshake(
     # Send the handshake response
     handshake_response = HANDSHAKE_RESPONSE.format(accept_key=accept_key)
     client_socket.send(handshake_response.encode("utf-8"))
-    print(f"WebSocket connection established with {client_address}")
+    logger.info(f"WebSocket connection established with {client_address}")
     return True
