@@ -5,6 +5,8 @@ from datetime import datetime
 from socket import AF_INET, SOCK_STREAM, socket
 from typing import Tuple
 
+from logs.log import logger
+
 from .consts import MAX_SOCKETS
 from .SocketManager import SocketManager
 
@@ -24,7 +26,6 @@ socket_manager = SocketManager(handle_client_disconnect)
 # TODO: exception handling
 def handle_read_client(client_address: Tuple[str, int], data_str: str):
     data = json.loads(data_str)
-    print(f"Client {client_address} sent: {data}")
     if data["event"] == "login" and isinstance(data["username"], str):
         username_list = socket_manager.read_all_data_by_key("username")
         if data["username"] in username_list:
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     server_socket = socket(AF_INET, SOCK_STREAM)
     server_socket.bind(("localhost", port))
     server_socket.listen(MAX_SOCKETS)
-    print("Server is listening...")
+    logger.debug("Server is listening...")
 
     while True:
         client_socket, client_address = server_socket.accept()

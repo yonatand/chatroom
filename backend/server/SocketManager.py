@@ -1,6 +1,9 @@
+import json
 import struct
 from socket import socket
 from typing import Any, Callable, Dict, Tuple
+
+from logs.log import logger
 
 from .handshake import perform_handshake
 
@@ -159,25 +162,29 @@ class SocketManager:
                     "message_type"
                 ] == "Unsupported" and "Upgrade: websocket" in data.decode("utf-8"):
                     if not perform_handshake(socket, client_addr, data.decode("utf-8")):
-                        print(f"Failed WebSocket handshake with {client_addr}")
+                        logger.error(f"Failed WebSocket handshake with {client_addr}")
                         break
                     else:
                         continue
                 elif decoded_data["message_type"] == "Unsupported":
                     socket.send(b"HTTP/1.1 400 Bad Request\r\n\r\n")
                     break
+                logger.info(
+                    f"Client {client_addr} sent: {json.loads(decoded_data["message"])}"
+                )
                 callback_fn(client_addr, decoded_data["message"])
         except Exception as e:
-            print(f"Exception: {e}")
+            logger.error(f"Exception: {e}")
         finally:
             socket.close()
             self.unregister_socket(client_addr)
-            print(f"Connection with {client_addr} closed.")
+            logger.info(f"Connection with {client_addr} closed.")
 
     def write_to_socket(self, client_addr: Tuple[str, int], data: str):
         socket = self.__get_socket(client_addr)
         if socket is None:
             raise ""  # TODO: add an exception
+        logger.info(f"Server sent to {client_addr}: {data}")
         socket.send(create_frame(data))
 
     def broadcast(self, data: str, client_addr: Tuple[str, int] = None):
@@ -186,6 +193,7 @@ class SocketManager:
         :param data - The data to broadcast
         :param client_addr - Optional client to not broadcast to (broadcast initiator)
         """
+        logger.info(f"Server broadcast: {data}")
         for client_key, client_value in self.user_dict.items():
             if client_key == client_addr:
                 continue
