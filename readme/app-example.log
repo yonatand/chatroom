@@ -1,0 +1,21 @@
+2024-09-14 22:14:35,415 - DEBUG - Server is listening...
+2024-09-14 22:14:37,562 - INFO - WebSocket connection established with ('127.0.0.1', 53170)
+2024-09-14 22:14:37,580 - INFO - Client ('127.0.0.1', 53170) sent: {'event': 'login', 'username': 'Yonatan'}
+2024-09-14 22:14:37,580 - INFO - Server broadcast: {"event": "login", "username": "Yonatan"}
+2024-09-14 22:14:37,581 - INFO - Server sent to ('127.0.0.1', 53170): {"event": "userList", "data": ["Yonatan"]}
+2024-09-14 22:15:01,881 - INFO - WebSocket connection established with ('127.0.0.1', 53173)
+2024-09-14 22:15:01,895 - INFO - Client ('127.0.0.1', 53173) sent: {'event': 'login', 'username': 'Lior'}
+2024-09-14 22:15:01,895 - INFO - Server broadcast: {"event": "login", "username": "Lior"}
+2024-09-14 22:15:01,895 - INFO - Server sent to ('127.0.0.1', 53173): {"event": "userList", "data": ["Yonatan", "Lior"]}
+2024-09-14 22:15:11,442 - INFO - Client ('127.0.0.1', 53170) sent: {'event': 'message', 'data': 'hello!'}
+2024-09-14 22:15:11,442 - INFO - Server broadcast: {"event": "message", "username": "Yonatan", "data": "hello!", "time": "2024-09-14T22:15:11.442841"}
+2024-09-14 22:15:25,339 - INFO - Client ('127.0.0.1', 53173) sent: {'event': 'message', 'data': 'hi!'}
+2024-09-14 22:15:25,339 - INFO - Server broadcast: {"event": "message", "username": "Lior", "data": "hi!", "time": "2024-09-14T22:15:25.339406"}
+2024-09-14 22:15:38,490 - INFO - Client ('127.0.0.1', 53170) sent: {'event': 'message', 'data': 'bye!'}
+2024-09-14 22:15:38,490 - INFO - Server broadcast: {"event": "message", "username": "Yonatan", "data": "bye!", "time": "2024-09-14T22:15:38.490329"}
+2024-09-14 22:15:41,901 - INFO - Server broadcast: {"event": "logout", "username": "Yonatan"}
+2024-09-14 22:15:41,902 - INFO - Connection with ('127.0.0.1', 53170) closed.
+2024-09-14 22:15:47,266 - INFO - Client ('127.0.0.1', 53173) sent: {'event': 'message', 'data': ':('}
+2024-09-14 22:15:47,267 - INFO - Server broadcast: {"event": "message", "username": "Lior", "data": ":(", "time": "2024-09-14T22:15:47.267302"}
+2024-09-14 22:15:50,462 - INFO - Server broadcast: {"event": "logout", "username": "Lior"}
+2024-09-14 22:15:50,462 - INFO - Connection with ('127.0.0.1', 53173) closed.
