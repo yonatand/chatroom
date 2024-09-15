@@ -3,6 +3,7 @@ import LoginPage from "@pages/LoginPage";
 import useStore from "@stores/useStore";
 import { useEffect, useState } from "react";
 import useWebSocket, { ReadyState } from "react-use-websocket";
+import { message } from "antd";
 
 const App = () => {
   const [socketUrl, setSocketUrl] = useState<string | null>(null);
@@ -29,8 +30,10 @@ const App = () => {
     if (
       receivedMessage.event === "error" &&
       receivedMessage.message === "Duplicate username"
-    )
+    ) {
       setSocketUrl(null);
+      message.error("Your username is already taken!", 4);
+    }
   }, [lastMessage]);
 
   return (
