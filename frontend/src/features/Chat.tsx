@@ -29,7 +29,9 @@ const Chat = ({ messages }: { messages: Message[] }) => {
                   }
                   description={msg.content}
                 />
-                <div className="text-gray-500">{msg.timestamp}</div>
+                <div className="text-gray-500">
+                  {new Date(msg.timestamp).toLocaleString("he-IL")}
+                </div>
               </List.Item>
             );
           } else if (msg.type === "SYSTEM") {
