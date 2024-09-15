@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, Tuple
 from logs import logger
 
 from .exceptions import SocketManagerException
-from .frameUtil import create_frame, decode_websocket_message
+from .frame_util import create_frame, decode_websocket_message
 from .handshake import perform_handshake
 
 

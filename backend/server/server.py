@@ -6,9 +6,9 @@ from socket import AF_INET, SOCK_STREAM, socket
 from typing import Tuple
 
 from logs import logger
+from socket_manager import SocketManager
 
-from .consts import MAX_SOCKETS
-from .socketManager import SocketManager
+MAX_SOCKETS = 5
 
 
 def handle_client_disconnect(client_address: Tuple[str, int]):

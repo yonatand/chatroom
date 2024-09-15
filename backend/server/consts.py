@@ -1,1 +1,0 @@
-MAX_SOCKETS = 5
