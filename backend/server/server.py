@@ -12,12 +12,19 @@ from .socketManager import SocketManager
 
 
 def handle_client_disconnect(client_address: Tuple[str, int]):
-    disconnected_username = socket_manager.read_client_data(client_address, "username")
-    if disconnected_username:
-        socket_manager.broadcast(
-            json.dumps({"event": "logout", "username": disconnected_username}),
-            client_address,
+    try:
+        disconnected_username = socket_manager.read_client_data(
+            client_address, "username"
         )
+        if disconnected_username:
+            socket_manager.broadcast(
+                json.dumps({"event": "logout", "username": disconnected_username}),
+                client_address,
+            )
+    except Exception:
+        # If an exception is thrown then the user doesn't exists,
+        # not action needed
+        pass
 
 
 socket_manager = SocketManager(handle_client_disconnect)
@@ -25,35 +32,41 @@ socket_manager = SocketManager(handle_client_disconnect)
 
 # TODO: exception handling
 def handle_read_client(client_address: Tuple[str, int], data_str: str):
-    data = json.loads(data_str)
-    if data["event"] == "login" and isinstance(data["username"], str):
-        username_list = socket_manager.read_all_data_by_key("username")
-        if data["username"] in username_list:
-            socket_manager.write_to_socket(
-                client_address,
-                json.dumps({"event": "error", "message": "Duplicate username"}),
+    try:
+        data = json.loads(data_str)
+        if data["event"] == "login" and isinstance(data["username"], str):
+            username_list = socket_manager.read_all_data_by_key("username")
+            if data["username"] in username_list:
+                socket_manager.write_to_socket(
+                    client_address,
+                    json.dumps({"event": "error", "message": "Duplicate username"}),
+                )
+                return
+            socket_manager.write_client_data(
+                client_address, "username", data["username"]
             )
-            return
-        socket_manager.write_client_data(client_address, "username", data["username"])
-        socket_manager.broadcast(
-            json.dumps({"event": "login", "username": data["username"]}), client_address
-        )
-        username_list.append(data["username"])
-        socket_manager.write_to_socket(
-            client_address, json.dumps({"event": "userList", "data": username_list})
-        )
-    elif data["event"] == "message" and isinstance(data["data"], str):
-        username: str = socket_manager.read_client_data(client_address, "username")
-        socket_manager.broadcast(
-            json.dumps(
-                {
-                    "event": "message",
-                    "username": username,
-                    "data": data["data"],
-                    "time": datetime.now().isoformat(),
-                }
-            ),
-        )
+            socket_manager.broadcast(
+                json.dumps({"event": "login", "username": data["username"]}),
+                client_address,
+            )
+            username_list.append(data["username"])
+            socket_manager.write_to_socket(
+                client_address, json.dumps({"event": "userList", "data": username_list})
+            )
+        elif data["event"] == "message" and isinstance(data["data"], str):
+            username: str = socket_manager.read_client_data(client_address, "username")
+            socket_manager.broadcast(
+                json.dumps(
+                    {
+                        "event": "message",
+                        "username": username,
+                        "data": data["data"],
+                        "time": datetime.now().isoformat(),
+                    }
+                ),
+            )
+    except Exception:
+        logger.error(f"handle_read_client failure for {client_address}")
 
 
 def handle_client(
