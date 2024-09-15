@@ -3,7 +3,7 @@ import hashlib
 from socket import socket
 from typing import Tuple
 
-from logs.log import logger
+from logs import logger
 
 HANDSHAKE_RESPONSE = (
     "HTTP/1.1 101 Switching Protocols\r\n"
