@@ -12,6 +12,13 @@ from .socketManager import SocketManager
 
 
 def handle_client_disconnect(client_address: Tuple[str, int]):
+    """
+    Logic that runs on client disconnect
+
+    Sends logout broadcast
+
+    :param client_address: The unique address of a client
+    """
     try:
         disconnected_username = socket_manager.read_client_data(
             client_address, "username"
@@ -30,8 +37,15 @@ def handle_client_disconnect(client_address: Tuple[str, int]):
 socket_manager = SocketManager(handle_client_disconnect)
 
 
-# TODO: exception handling
 def handle_read_client(client_address: Tuple[str, int], data_str: str):
+    """
+    Buisness logic of socket packets handling
+
+    Handles Login event and Message event
+
+    :param client_address: The unique address of a client
+    :param data_str: Data from client in string format
+    """
     try:
         data = json.loads(data_str)
         if data["event"] == "login" and isinstance(data["username"], str):
@@ -73,11 +87,20 @@ def handle_client(
     client_socket: socket,
     client_address: Tuple[str, int],
 ):
+    """
+    Entry function for client thread
+
+    :param client_socket: The socket of the client
+    :param client_address: The unique address of a client
+    """
     socket_manager.register_socket(client_address, client_socket)
     socket_manager.read_from_socket(client_address, handle_read_client)
 
 
 def get_port():
+    """
+    Get startup port from arguments
+    """
     if len(sys.argv) < 2:
         raise Exception("Port number needs to pass as an argument")
     if not sys.argv[1].isnumeric():

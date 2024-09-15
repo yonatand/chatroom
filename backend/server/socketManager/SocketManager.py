@@ -13,15 +13,31 @@ class SocketManager:
     def __init__(
         self, unregister_callback_fn: Callable[[Tuple[str, int]], None] = None
     ):
+        """
+        Initialize the Socket Manager
+
+        :param unregister_callback_fn: Callback function that is triggered on client unregister
+        """
         self.user_dict: Dict[Tuple[str, int], Dict[str, Any]] = {}
         self.unregister_callback_fn = unregister_callback_fn
 
     def __get_socket(self, client_addr: Tuple[str, int]) -> socket | None:
+        """
+        Internal function to get the socket of a client
+
+        :param client_addr: The unique address of a client
+        """
         if client_addr in self.user_dict:
             return self.user_dict[client_addr]["socket"]
         return None
 
     def register_socket(self, client_addr: Tuple[str, int], socket: socket):
+        """
+        Registers a client in the Socket Manager
+
+        :param client_addr: The unique address of a client
+        :param socket: The socket of the client
+        """
         if client_addr in self.user_dict:
             logger.error(f"Client {client_addr} does not exists in user dictionary")
             raise SocketManagerException(
@@ -31,11 +47,22 @@ class SocketManager:
         self.user_dict[client_addr]["socket"] = socket
 
     def unregister_socket(self, client_addr: Tuple[str, int]):
+        """
+        Unregisters a client from the Socket Manager
+
+        :param client_addr: The unique address of a client
+        """
         if self.unregister_callback_fn:
             self.unregister_callback_fn(client_addr)
         self.user_dict.pop(client_addr, None)
 
     def read_client_data(self, client_addr: Tuple[str, int], key: str = None):
+        """
+        Returns client metadata by key or the whole metadata object
+
+        :param client_addr: The unique address of a client
+        :param key: The key of the requested metadata
+        """
         if client_addr not in self.user_dict:
             logger.error(f"Client {client_addr} does not exists in user dictionary")
             raise SocketManagerException(
@@ -48,6 +75,13 @@ class SocketManager:
         return self.user_dict[client_addr]
 
     def write_client_data(self, client_addr: Tuple[str, int], key: str, value: Any):
+        """
+        Writes client metadata by key
+
+        :param client_addr: The unique address of a client
+        :param key: The key of the requested metadata
+        :param value: The value to set as client metadata at key
+        """
         if key == "socket":
             logger.error(f"Tried to rewrite the socket of {client_addr}")
             raise SocketManagerException(
@@ -61,6 +95,11 @@ class SocketManager:
         self.user_dict[client_addr][key] = value
 
     def read_all_data_by_key(self, key: str):
+        """
+        Returns a list of all the metadata values of all registered clients at key (only if metadata exsits)
+
+        :param key: The key of the requested metadata
+        """
         if key == "socket":
             logger.error("Tried to read the socket of all clients")
             raise SocketManagerException(
@@ -77,6 +116,14 @@ class SocketManager:
         client_addr: Tuple[str, int],
         callback_fn: Callable[[Tuple[str, int], Any], None],
     ):
+        """
+        Read socket until socket dies (blocking) and call callback when recived data
+
+        Handles socket closing and handshake request
+
+        :param client_addr: The unique address of a client
+        :param callback_fn: The function to call when reccived data from socket
+        """
         socket = self.__get_socket(client_addr)
         if socket is None:
             logger.error(f"Could not get the socket of {client_addr}")
@@ -114,6 +161,12 @@ class SocketManager:
             logger.info(f"Connection with {client_addr} closed.")
 
     def write_to_socket(self, client_addr: Tuple[str, int], data: str):
+        """
+        Writes data to socket
+
+        :param client_addr: The unique address of a client
+        :param data: The data to send in plain text
+        """
         socket = self.__get_socket(client_addr)
         if socket is None:
             logger.error(f"Could not get the socket of {client_addr}")
@@ -127,7 +180,7 @@ class SocketManager:
         """
         Broadcast data to all connected sockets
 
-        :param data: The data to broadcast
+        :param data: The data in plain text to broadcast
         :param client_addr: Optional client to not broadcast to (broadcast initiator)
         """
         logger.info(f"Server broadcast: {data}")
