@@ -7,6 +7,24 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
 
+  base: "./",
+
+  build: {
+    outDir: "dist",
+    rollupOptions: {
+      external: ["electron"],
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+      },
+      output: {
+        manualChunks: {
+          chunk1: ["react", "react-dom"],
+          chunk2: ["antd"],
+        },
+      },
+    },
+  },
+
   resolve: {
     alias: {
       "@components": path.resolve(__dirname, "./src/components"),
