@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, Tuple
 
 from logs import logger
 
+from .exceptions import SocketManagerException
 from .frameUtil import create_frame, decode_websocket_message
 from .handshake import perform_handshake
 
@@ -22,7 +23,10 @@ class SocketManager:
 
     def register_socket(self, client_addr: Tuple[str, int], socket: socket):
         if client_addr in self.user_dict:
-            raise ""  # TODO: add an exception
+            logger.error(f"Client {client_addr} does not exists in user dictionary")
+            raise SocketManagerException(
+                "Register socket exception: client address does not exists in user dictionary"
+            )
         self.user_dict[client_addr] = {}
         self.user_dict[client_addr]["socket"] = socket
 
@@ -33,7 +37,10 @@ class SocketManager:
 
     def read_client_data(self, client_addr: Tuple[str, int], key: str = None):
         if client_addr not in self.user_dict:
-            raise ""  # TODO: add an exception
+            logger.error(f"Client {client_addr} does not exists in user dictionary")
+            raise SocketManagerException(
+                "Read client data exception: client address does not exists in user dictionary"
+            )
         if key:
             if key not in self.user_dict[client_addr]:
                 return None
@@ -42,14 +49,23 @@ class SocketManager:
 
     def write_client_data(self, client_addr: Tuple[str, int], key: str, value: Any):
         if key == "socket":
-            raise ""  # TODO: add an exception
+            logger.error(f"Tried to rewrite the socket of {client_addr}")
+            raise SocketManagerException(
+                "Write client data exception: writing socket is not allowed"
+            )
         if client_addr not in self.user_dict:
-            raise ""  # TODO: add an exception
+            logger.error(f"Client {client_addr} does not exists in user dictionary")
+            raise SocketManagerException(
+                "Write client data exception: client address does not exists in user dictionary"
+            )
         self.user_dict[client_addr][key] = value
 
     def read_all_data_by_key(self, key: str):
         if key == "socket":
-            raise ""  # TODO: add an exception
+            logger.error("Tried to read the socket of all clients")
+            raise SocketManagerException(
+                "Read all data by key exception: reading socket is not allowed"
+            )
         return [
             inner_dict[key]
             for inner_dict in self.user_dict.values()
@@ -63,7 +79,10 @@ class SocketManager:
     ):
         socket = self.__get_socket(client_addr)
         if socket is None:
-            raise ""  # TODO: add an exception
+            logger.error(f"Could not get the socket of {client_addr}")
+            raise SocketManagerException(
+                "Read from socket exception: failed getting socket"
+            )
         try:
             while True:
                 data = socket.recv(1024)  # Read from socket
@@ -88,7 +107,7 @@ class SocketManager:
                 )
                 callback_fn(client_addr, decoded_data["message"])
         except Exception as e:
-            logger.error(f"Exception: {e}")
+            logger.error(f"Exception for {client_addr} in read_from_socket: {e}")
         finally:
             socket.close()
             self.unregister_socket(client_addr)
@@ -97,7 +116,10 @@ class SocketManager:
     def write_to_socket(self, client_addr: Tuple[str, int], data: str):
         socket = self.__get_socket(client_addr)
         if socket is None:
-            raise ""  # TODO: add an exception
+            logger.error(f"Could not get the socket of {client_addr}")
+            raise SocketManagerException(
+                "Write to socket exception: failed getting socket"
+            )
         logger.info(f"Server sent to {client_addr}: {data}")
         socket.send(create_frame(data))
 
@@ -109,7 +131,9 @@ class SocketManager:
         :param client_addr: Optional client to not broadcast to (broadcast initiator)
         """
         logger.info(f"Server broadcast: {data}")
-        for client_key, client_value in self.user_dict.items():
+        for client_key in self.user_dict:
             if client_key == client_addr:
                 continue
-            client_value["socket"].send(create_frame(data))
+            client_socket = self.__get_socket(client_key)
+            if client_socket is not None:
+                client_socket.send(create_frame(data))
